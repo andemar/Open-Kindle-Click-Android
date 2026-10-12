@@ -204,7 +204,7 @@ public class KindleClickActivity extends AbstractBleActivity {
         if (handles[0] > MAX_KINDLE_HANDLE || handles[1] > MAX_KINDLE_HANDLE) {
             statusText.setText(string.status_handles_too_high);
         } else if (!connected) {
-            statusText.setText(string.status_waiting);
+            statusText.setText(kindleClick.hasStaleLink() ? string.status_stale_link : string.status_waiting);
         } else if (kindleHandles != null && !kindleHandles.equals(Arrays.toString(handles))) {
             statusText.setText(string.status_handles_moved);
         } else {

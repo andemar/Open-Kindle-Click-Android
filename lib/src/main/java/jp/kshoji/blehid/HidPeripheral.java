@@ -22,6 +22,7 @@ import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.os.Handler;
 import android.os.ParcelUuid;
+import android.os.SystemClock;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import android.util.Log;
@@ -246,6 +247,12 @@ public abstract class HidPeripheral {
     private final Map<String, BluetoothDevice> bluetoothDevicesMap = new HashMap<>();
 
     /**
+     * Links reported before the services were added, until they drop: address, time first seen
+     */
+    private final Map<String, Long> oldLinks = new HashMap<>();
+    private static final long STALE_LINK_DELAY = 5000; // ms an old link may take to drop
+
+    /**
      * GATT services must be added one-by-one, waiting for {@link BluetoothGattServerCallback#onServiceAdded}.
      */
     private final Deque<BluetoothGattService> pendingGattServices = new ConcurrentLinkedDeque<>();
@@ -334,6 +341,22 @@ public abstract class HidPeripheral {
         synchronized (bluetoothDevicesMap) {
             return bluetoothDevicesMap.containsKey(address);
         }
+    }
+
+    /**
+     * @return true if a link opened before this peripheral started is still up some seconds after it was dropped.
+     * Android keeps such a link while another app uses it, and a Kindle ignores the input reports on it until it
+     * reconnects.
+     */
+    public final boolean hasStaleLink() {
+        synchronized (oldLinks) {
+            for (final long since : oldLinks.values()) {
+                if (SystemClock.elapsedRealtime() - since >= STALE_LINK_DELAY) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -905,7 +928,17 @@ public abstract class HidPeripheral {
                         // A link opened before this server added its services, reported when it registered. On
                         // that link a Kindle keeps its setup for the previous services and ignores the new input
                         // reports. Drop the link, so that the Central reconnects and sets them up again.
+                        synchronized (oldLinks) {
+                            oldLinks.put(device.getAddress(), SystemClock.elapsedRealtime());
+                        }
                         dropLink(device);
+                        // Android keeps the link while another app uses it: report it if it is still up then
+                        handler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                notifyConnectionState(device, status, newState);
+                            }
+                        }, STALE_LINK_DELAY);
                         break;
                     }
                     // A new Central pairs by itself and is registered when it enables notifications. Don't call
@@ -933,6 +966,9 @@ public abstract class HidPeripheral {
                             // The link may have dropped just before holdLink() ran: cancel its connection attempt
                             gattServer.cancelConnection(device);
                         }
+                    }
+                    synchronized (oldLinks) {
+                        oldLinks.remove(deviceAddress);
                     }
                     notifyConnectionState(device, status, newState);
                     break;

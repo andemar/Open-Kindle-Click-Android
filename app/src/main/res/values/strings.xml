@@ -20,6 +20,7 @@
     <string name="battery_level">Battery level shown on the Kindle: %1$d%%</string>
     <string name="status_starting">Starting the remote…</string>
     <string name="status_waiting">Waiting for the Kindle: it connects when it is awake. If it doesn\'t within a few seconds, connect the remote from the Kindle\'s Bluetooth devices. To pair, on the Kindle open Settings › Wi-Fi and Bluetooth › Bluetooth devices.</string>
+    <string name="status_stale_link">The Kindle is still connected from before the remote restarted, and ignores it until it reconnects. On the Kindle, turn Bluetooth off and on, or disconnect and reconnect the remote.</string>
     <string name="status_handles_moved">Kindle connected, but the remote\'s Bluetooth layout changed since the Kindle last set it up, so keys may do nothing. On the Kindle, disconnect and reconnect the remote, or put the Kindle to sleep and wake it.</string>
     <string name="status_handles_too_high">This phone placed the remote where a Kindle can\'t use it. Turn the phone\'s Bluetooth off and on.</string>
     <string name="status_bluetooth_off">Bluetooth is off. The remote starts again when it\'s back on.</string>
