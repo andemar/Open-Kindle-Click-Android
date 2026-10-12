@@ -27,12 +27,14 @@ Kindle Click
 
 The sample app's **Kindle Click** screen turns the phone into a Kindle Click remote: page forward / back (also the volume keys), light −/+, and sleep (hold). The Kindle shows the phone's battery level, or one you choose.
 
+It should work with any Kindle that supports the Kindle Click; the tested ones are listed above.
+
 To pair, open Settings › Wi-Fi & Bluetooth › Bluetooth devices on the Kindle, choose the remote, and confirm the code on both devices.
 
 Known limits:
 
 - The remote can't wake the Kindle. After you wake it, the remote works again in about 3 seconds.
-- Kindle firmware 5.20.1 doesn't count remote page turns as activity, so the Kindle still sleeps 10 minutes after the last screen touch.
+- Kindle firmware 5.20.1 doesn't count remote page turns as activity, so the Kindle still sleeps when its sleep timer runs out after the last screen touch. A longer timer helps (Settings › Device options › Sleep timer).
 
 Requirements
 ------------
