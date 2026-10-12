@@ -17,10 +17,7 @@ import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertiseData.Builder;
 import android.bluetooth.le.AdvertiseSettings;
 import android.bluetooth.le.BluetoothLeAdvertiser;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.os.Handler;
@@ -135,6 +132,8 @@ public abstract class HidPeripheral {
     private static final UUID CHARACTERISTIC_MANUFACTURER_NAME = BleUuidUtils.fromShortValue(0x2A29);
     private static final UUID CHARACTERISTIC_MODEL_NUMBER = BleUuidUtils.fromShortValue(0x2A24);
     private static final UUID CHARACTERISTIC_SERIAL_NUMBER = BleUuidUtils.fromShortValue(0x2A25);
+    private static final UUID CHARACTERISTIC_PNP_ID = BleUuidUtils.fromShortValue(0x2A50);
+    private static final UUID CHARACTERISTIC_FIRMWARE_REVISION = BleUuidUtils.fromShortValue(0x2A26);
     private static final int DEVICE_INFO_MAX_LENGTH = 20;
 
     private String manufacturer = "kshoji.jp";
@@ -146,6 +145,9 @@ public abstract class HidPeripheral {
      */
     private static final UUID SERVICE_BATTERY = BleUuidUtils.fromShortValue(0x180F);
     private static final UUID CHARACTERISTIC_BATTERY_LEVEL = BleUuidUtils.fromShortValue(0x2A19);
+    private static final long BATTERY_NOTIFY_DELAY = 2000; // ms after a subscription or a level change
+    private static final long BATTERY_NOTIFY_DELAY_CONNECTED = 5000; // ms after a bonded Central connects
+    private static final long BATTERY_RENOTIFY_INTERVAL = 15 * 60 * 1000; // ms
 
     /**
      * HID Service
@@ -163,6 +165,46 @@ public abstract class HidPeripheral {
      */
     protected abstract byte[] getReportMap();
     
+    /**
+     * Report ID sent in the Report Reference descriptors; must match the Report Map
+     * @return the Report ID, or 0 if the Report Map has none
+     */
+    protected int getReportId() {
+        return 0;
+    }
+
+    /**
+     * Value of the Device Information 'PnP ID' characteristic
+     * @return 7 bytes (vendor ID source, vendor ID, product ID, product version), or null to leave it out
+     */
+    @Nullable
+    protected byte[] getPnpId() {
+        return null;
+    }
+
+    /**
+     * Value of the Device Information 'Firmware Revision String' characteristic
+     * @return the revision (up to 20 bytes), or null to leave it out
+     */
+    @Nullable
+    protected String getFirmwareRevision() {
+        return null;
+    }
+
+    /**
+     * Adds extra fields, such as manufacturer data, to the advertisement
+     * @param advertiseData the advertisement being built
+     */
+    protected void addAdvertiseData(@NonNull final Builder advertiseData) {
+    }
+
+    /**
+     * Called on the main thread after a Central enables input report notifications, which a HID host does once
+     * it has set this device up
+     */
+    protected void onInputReportSubscribed() {
+    }
+
     /**
      * HID Input Report
      */
@@ -194,9 +236,11 @@ public abstract class HidPeripheral {
      */
     private final Context applicationContext;
     private final Handler handler;
-    private final BluetoothAdapter bluetoothAdapter;
     private final BluetoothLeAdvertiser bluetoothLeAdvertiser;
     private BluetoothGattCharacteristic inputReportCharacteristic;
+    private BluetoothGattCharacteristic batteryLevelCharacteristic;
+    private volatile int batteryLevel = 100;
+    private final Timer dataSendTimer;
     @Nullable
     private BluetoothGattServer gattServer;
     private final Map<String, BluetoothDevice> bluetoothDevicesMap = new HashMap<>();
@@ -254,6 +298,59 @@ public abstract class HidPeripheral {
     }
 
     /**
+     * Listener for a Central enabling input report notifications, as a HID host does when it discovers this
+     * device. Connection callbacks, by contrast, report every device linked to the phone.
+     */
+    public interface SubscriptionCallback {
+        void onSubscribed(@NonNull BluetoothDevice device);
+    }
+
+    @Nullable
+    private SubscriptionCallback subscriptionCallback;
+
+    /**
+     * Sets a callback invoked when a Central enables notifications.
+     *
+     * @param subscriptionCallback the callback, or null to clear
+     */
+    public void setSubscriptionCallback(@Nullable final SubscriptionCallback subscriptionCallback) {
+        this.subscriptionCallback = subscriptionCallback;
+    }
+
+    /**
+     * @return true if a Central that input reports are sent to is connected (it is bonded, or subscribed)
+     */
+    public final boolean isConnected() {
+        synchronized (bluetoothDevicesMap) {
+            return !bluetoothDevicesMap.isEmpty();
+        }
+    }
+
+    /**
+     * @param address the Central's address, as its callbacks report it
+     * @return true if that Central is connected and input reports are sent to it
+     */
+    public final boolean isConnected(@NonNull final String address) {
+        synchronized (bluetoothDevicesMap) {
+            return bluetoothDevicesMap.containsKey(address);
+        }
+    }
+
+    /**
+     * Handles of the input report and battery level values. Android places services after the last one
+     * registered, so they can change when the peripheral restarts; some hosts (e.g. a Kindle) keep old ones.
+     *
+     * @return {input report handle, battery level handle}, or null until all services are added
+     */
+    @Nullable
+    public final int[] getGattHandles() {
+        if (!gattServicesReady || inputReportCharacteristic == null || batteryLevelCharacteristic == null) {
+            return null;
+        }
+        return new int[]{inputReportCharacteristic.getInstanceId(), batteryLevelCharacteristic.getInstanceId()};
+    }
+
+    /**
      * Constructor<br />
      * Before constructing the instance, check the Bluetooth availability.
      *
@@ -290,8 +387,6 @@ public abstract class HidPeripheral {
             throw new UnsupportedOperationException("Bluetooth LE Advertising not supported on this device.");
         }
 
-        this.bluetoothAdapter = bluetoothAdapter;
-
         gattServer = bluetoothManager.openGattServer(applicationContext, gattServerCallback);
         if (gattServer == null) {
             throw new UnsupportedOperationException("gattServer is null, check Bluetooth is ON.");
@@ -299,8 +394,10 @@ public abstract class HidPeripheral {
 
         // Queue services; add sequentially in onServiceAdded to avoid flaky GATT setup
         pendingGattServices.offerLast(setUpHidService(needInputReport, needOutputReport, needFeatureReport));
-        pendingGattServices.offerLast(setUpDeviceInformationService());
-        pendingGattServices.offerLast(setUpBatteryService());
+        pendingGattServices.offerLast(setUpDeviceInformationService(getPnpId(), getFirmwareRevision()));
+        final BluetoothGattService batteryService = setUpBatteryService();
+        batteryLevelCharacteristic = batteryService.getCharacteristic(CHARACTERISTIC_BATTERY_LEVEL);
+        pendingGattServices.offerLast(batteryService);
         handler.post(new Runnable() {
             @Override
             public void run() {
@@ -309,7 +406,8 @@ public abstract class HidPeripheral {
         });
         
         // send report each dataSendingRate, if data available
-        new Timer().scheduleAtFixedRate(new TimerTask() {
+        dataSendTimer = new Timer();
+        dataSendTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
                 final byte[] polled = inputReportQueue.poll();
@@ -317,12 +415,47 @@ public abstract class HidPeripheral {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            notifyInputReport(polled);
+                            notifyCharacteristic(inputReportCharacteristic, polled);
                         }
                     });
                 }
             }
         }, 0, dataSendingRate);
+    }
+
+    /**
+     * Mark the link as used by this app, so it stays up while the peripheral runs and drops when it stops.
+     * Without a user, Android keeps a link that a Central opened even after this app closes.
+     */
+    private void holdLink(@NonNull final BluetoothDevice device) {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                synchronized (bluetoothDevicesMap) {
+                    // On a live link connect() only marks it used. Skip it once disconnected: it would start a
+                    // 30 s connection attempt instead (onConnectionStateChange cancels one that slipped through).
+                    if (gattServer != null && bluetoothDevicesMap.containsKey(device.getAddress())) {
+                        gattServer.connect(device, false);
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Drop a link this app doesn't want: mark it used, then release it, so Android closes it unless another app
+     * uses it.
+     */
+    private void dropLink(@NonNull final BluetoothDevice device) {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (gattServer != null) {
+                    gattServer.connect(device, false);
+                    gattServer.cancelConnection(device);
+                }
+            }
+        });
     }
 
     /**
@@ -336,19 +469,19 @@ public abstract class HidPeripheral {
     }
 
     /**
-     * Send one HID input report to all registered Centrals.
+     * Send one notification (e.g. an HID input report) to all registered Centrals.
      */
-    private void notifyInputReport(@NonNull final byte[] report) {
-        if (gattServer == null || inputReportCharacteristic == null) {
+    private void notifyCharacteristic(@Nullable final BluetoothGattCharacteristic characteristic, @NonNull final byte[] report) {
+        if (gattServer == null || characteristic == null) {
             return;
         }
 
         // Keep legacy setter for older stacks / descriptors that read the characteristic value
-        inputReportCharacteristic.setValue(report);
+        characteristic.setValue(report);
 
         final Set<BluetoothDevice> devices = getDevices();
         if (devices.isEmpty()) {
-            Log.w(TAG, "Input report dropped: no registered Centrals");
+            Log.w(TAG, "Notification dropped: no registered Centrals");
             return;
         }
 
@@ -357,14 +490,14 @@ public abstract class HidPeripheral {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     // Android 13+: value must be passed explicitly or notifications are empty/ignored
                     final int status = gattServer.notifyCharacteristicChanged(
-                            device, inputReportCharacteristic, false, report);
+                            device, characteristic, false, report);
                     if (status != BluetoothStatusCodes.SUCCESS) {
                         Log.w(TAG, "notifyCharacteristicChanged failed for "
                                 + device.getAddress() + ", status=" + status);
                     }
                 } else {
                     final boolean sent = gattServer.notifyCharacteristicChanged(
-                            device, inputReportCharacteristic, false);
+                            device, characteristic, false);
                     if (!sent) {
                         Log.w(TAG, "notifyCharacteristicChanged failed for " + device.getAddress());
                     }
@@ -411,9 +544,11 @@ public abstract class HidPeripheral {
     /**
      * Setup Device Information Service
      *
+     * @param pnpId the PnP ID value, or null for none
+     * @param firmwareRevision the Firmware Revision String, or null for none
      * @return the service
      */
-    private static BluetoothGattService setUpDeviceInformationService() {
+    private static BluetoothGattService setUpDeviceInformationService(@Nullable final byte[] pnpId, @Nullable final String firmwareRevision) {
         final BluetoothGattService service = new BluetoothGattService(SERVICE_DEVICE_INFORMATION, BluetoothGattService.SERVICE_TYPE_PRIMARY);
         {
             final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(CHARACTERISTIC_MANUFACTURER_NAME, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED);
@@ -426,6 +561,16 @@ public abstract class HidPeripheral {
         {
             final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(CHARACTERISTIC_SERIAL_NUMBER, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED);
             while (!service.addCharacteristic(characteristic)) ;
+        }
+        if (pnpId != null) {
+            final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(CHARACTERISTIC_PNP_ID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+            characteristic.setValue(pnpId);
+            while (!service.addCharacteristic(characteristic));
+        }
+        if (firmwareRevision != null) {
+            final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(CHARACTERISTIC_FIRMWARE_REVISION, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+            characteristic.setValue(firmwareRevision.getBytes(StandardCharsets.UTF_8));
+            while (!service.addCharacteristic(characteristic));
         }
 
         return service;
@@ -595,13 +740,6 @@ public abstract class HidPeripheral {
             // not advertising / BT off
         }
 
-        // Keep adapter name in sync so setIncludeDeviceName reflects setDeviceName()
-        try {
-            bluetoothAdapter.setName(deviceName);
-        } catch (final SecurityException e) {
-            Log.d(TAG, "Failed to set adapter name", e);
-        }
-
         final AdvertiseSettings advertiseSettings = new AdvertiseSettings.Builder()
                 .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
                 .setConnectable(true)
@@ -613,6 +751,7 @@ public abstract class HidPeripheral {
         final Builder advertiseDataBuilder = new Builder()
                 .setIncludeTxPowerLevel(false)
                 .addServiceUuid(new ParcelUuid(SERVICE_BLE_HID));
+        addAdvertiseData(advertiseDataBuilder);
 
         final Builder scanResultBuilder = new Builder()
                 .addServiceUuid(new ParcelUuid(SERVICE_BATTERY));
@@ -642,6 +781,8 @@ public abstract class HidPeripheral {
             @Override
             public void run() {
                 advertisingRequested = false;
+                handler.removeCallbacks(batteryNotifier);
+                dataSendTimer.cancel();
                 try {
                     bluetoothLeAdvertiser.stopAdvertising(advertiseCallback);
                 } catch (final IllegalStateException ignored) {
@@ -754,66 +895,28 @@ public abstract class HidPeripheral {
         @Override
         public void onConnectionStateChange(final BluetoothDevice device, final int status, final int newState) {
             super.onConnectionStateChange(device, status, newState);
-            Log.d(TAG, "onConnectionStateChange status: " + status + ", newState: " + newState);
+            Log.d(TAG, "onConnectionStateChange " + device.getAddress() + " status: " + status + ", newState: " + newState);
 
             switch (newState) {
                 case BluetoothProfile.STATE_CONNECTED:
                     // check bond status
                     Log.d(TAG, "BluetoothProfile.STATE_CONNECTED bondState: " + device.getBondState());
-                    if (device.getBondState() == BluetoothDevice.BOND_NONE) {
-                        final BroadcastReceiver bondStateReceiver = new BroadcastReceiver() {
-                            @Override
-                            public void onReceive(final Context context, final Intent intent) {
-                                final String action = intent.getAction();
-                                Log.d(TAG, "onReceive action: " + action);
-
-                                if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {
-                                    final int state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR);
-
-                                    if (state == BluetoothDevice.BOND_BONDED) {
-                                        // successfully bonded
-                                        context.unregisterReceiver(this);
-
-                                        registerDevice(device);
-                                        handler.post(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                if (gattServer != null) {
-                                                    gattServer.connect(device, true);
-                                                }
-                                            }
-                                        });
-                                        Log.d(TAG, "successfully bonded");
-                                    }
-                                }
-                            }
-                        };
-                        final IntentFilter bondStateFilter = new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            applicationContext.registerReceiver(bondStateReceiver, bondStateFilter, Context.RECEIVER_NOT_EXPORTED);
-                        } else {
-                            applicationContext.registerReceiver(bondStateReceiver, bondStateFilter);
-                        }
-
-                        // create bond
-                        try {
-                            device.setPairingConfirmation(true);
-                        } catch (final SecurityException e) {
-                            Log.d(TAG, e.getMessage(), e);
-                        }
-                        device.createBond();
-                    } else if (device.getBondState() == BluetoothDevice.BOND_BONDED) {
+                    if (!gattServicesReady) {
+                        // A link opened before this server added its services, reported when it registered. On
+                        // that link a Kindle keeps its setup for the previous services and ignores the new input
+                        // reports. Drop the link, so that the Central reconnects and sets them up again.
+                        dropLink(device);
+                        break;
+                    }
+                    // A new Central pairs by itself and is registered when it enables notifications. Don't call
+                    // createBond() for it: that fails while the Central is pairing, and the stack then deletes
+                    // the Central's new bond when the link drops (seen on Android 15).
+                    if (device.getBondState() == BluetoothDevice.BOND_BONDED) {
                         registerDevice(device);
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (gattServer != null) {
-                                    gattServer.connect(device, true);
-                                }
-                            }
-                        });
+                        scheduleBatteryNotification(BATTERY_NOTIFY_DELAY_CONNECTED);
+                        holdLink(device);
                     } else if (device.getBondState() == BluetoothDevice.BOND_BONDING) {
-                        // Stay connected while pairing UI is shown; register once bonded via receiver below if needed
+                        // Stay connected while pairing UI is shown
                         registerDevice(device);
                     }
 
@@ -823,19 +926,13 @@ public abstract class HidPeripheral {
                 case BluetoothProfile.STATE_DISCONNECTED:
                     final String deviceAddress = device.getAddress();
 
-                    // try reconnect immediately
-                    handler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (gattServer != null) {
-                                // gattServer.cancelConnection(device);
-                                gattServer.connect(device, true);
-                            }
-                        }
-                    });
-                    
+                    // The Central reconnects by itself (a HID host keeps a background connection to it)
                     synchronized (bluetoothDevicesMap) {
                         bluetoothDevicesMap.remove(deviceAddress);
+                        if (gattServer != null) {
+                            // The link may have dropped just before holdLink() ran: cancel its connection attempt
+                            gattServer.cancelConnection(device);
+                        }
                     }
                     notifyConnectionState(device, status, newState);
                     break;
@@ -895,7 +992,7 @@ public abstract class HidPeripheral {
                     } else if (BleUuidUtils.matches(CHARACTERISTIC_MODEL_NUMBER, characteristicUuid)) {
                         gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, deviceName.getBytes(StandardCharsets.UTF_8));
                     } else if (BleUuidUtils.matches(CHARACTERISTIC_BATTERY_LEVEL, characteristicUuid)) {
-                        gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, new byte[] {0x64}); // always 100%
+                        gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, new byte[] {(byte) batteryLevel});
                     } else {
                         gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, characteristic.getValue());
                     }
@@ -919,13 +1016,13 @@ public abstract class HidPeripheral {
                         final int characteristicProperties = descriptor.getCharacteristic().getProperties();
                         if (characteristicProperties == (BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_NOTIFY)) {
                             // Input Report
-                            gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, new byte[]{0, 1});
+                            gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, new byte[]{(byte) getReportId(), 1});
                         } else if (characteristicProperties == (BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)) {
                             // Output Report
-                            gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, new byte[]{0, 2});
+                            gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, new byte[]{(byte) getReportId(), 2});
                         } else if (characteristicProperties == (BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_WRITE)) {
                             // Feature Report
-                            gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, new byte[]{0, 3});
+                            gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, new byte[]{(byte) getReportId(), 3});
                         } else {
                             gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, EMPTY_BYTES);
                         }
@@ -975,11 +1072,19 @@ public abstract class HidPeripheral {
 
             descriptor.setValue(value);
 
+            boolean inputReportSubscribed = false;
             if (BleUuidUtils.matches(DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION, descriptor.getUuid())) {
                 if (value != null && value.length >= 2
                         && (value[0] & 0x01) == 0x01) {
                     // notifications (and possibly indications) enabled — Windows is ready for input reports
                     registerDevice(device);
+                    holdLink(device);
+                    scheduleBatteryNotification(BATTERY_NOTIFY_DELAY);
+                    inputReportSubscribed = descriptor.getCharacteristic() == inputReportCharacteristic;
+                    final SubscriptionCallback callback = subscriptionCallback;
+                    if (callback != null && inputReportSubscribed) {
+                        callback.onSubscribed(device);
+                    }
                 }
             }
 
@@ -987,6 +1092,16 @@ public abstract class HidPeripheral {
                 if (gattServer != null) {
                     gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, EMPTY_BYTES);
                 }
+            }
+
+            if (inputReportSubscribed) {
+                // Posted after the write response, so reports sent by the hook follow it
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        onInputReportSubscribed();
+                    }
+                });
             }
         }
 
@@ -1072,4 +1187,38 @@ public abstract class HidPeripheral {
             serialNumber = newSerialNumber;
         }
     }
+
+    /**
+     * Set the battery level, and notify it to the Centrals
+     *
+     * @param level the level in percent, 0 to 100
+     */
+    public final void setBatteryLevel(final int level) {
+        final int newLevel = Math.max(0, Math.min(100, level));
+        if (newLevel != batteryLevel) {
+            batteryLevel = newLevel;
+            scheduleBatteryNotification(BATTERY_NOTIFY_DELAY);
+        }
+    }
+
+    /**
+     * Notify the battery level after the delay, then every {@link #BATTERY_RENOTIFY_INTERVAL}.<br />
+     * Some Centrals (e.g. a Kindle) only show notified levels, and drop them until their HID connection is open.
+     *
+     * @param delay the delay in milliseconds
+     */
+    private synchronized void scheduleBatteryNotification(final long delay) {
+        handler.removeCallbacks(batteryNotifier);
+        handler.postDelayed(batteryNotifier, delay);
+    }
+
+    private final Runnable batteryNotifier = new Runnable() {
+        @Override
+        public void run() {
+            if (gattServer != null) { // not stopped
+                notifyCharacteristic(batteryLevelCharacteristic, new byte[]{(byte) batteryLevel});
+                scheduleBatteryNotification(BATTERY_RENOTIFY_INTERVAL);
+            }
+        }
+    };
 }
