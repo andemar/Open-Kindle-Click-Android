@@ -9,6 +9,7 @@ Android device will behave as:
 - BLE Mouse (relative position / absolute position)
 - BLE Keyboard
 - BLE Joystick
+- Kindle Click page turner
 
 Tested connection:
 
@@ -16,8 +17,22 @@ Tested connection:
     - Relative Position Mouse, Keyboard
 - Android(Peripheral) <--> OS X(Central)
     - Absolute Position Mouse, Relative Position Mouse, Keyboard
+- Android(Peripheral) <--> Kindle(Central)
+    - Kindle Click: Kindle Scribe (3rd gen), Kindle Paperwhite (12th gen), firmware 5.20.1
 
 Currently, connection with iOS central is not tested yet.
+
+Kindle Click
+------------
+
+The sample app's **Kindle Click** screen turns the phone into a Kindle Click remote: page forward / back (also the volume keys), light −/+, and sleep (hold). The Kindle shows the phone's battery level, or one you choose.
+
+To pair, open Settings › Wi-Fi & Bluetooth › Bluetooth devices on the Kindle, choose the remote, and confirm the code on both devices.
+
+Known limits:
+
+- The remote can't wake the Kindle. After you wake it, the remote works again in about 3 seconds.
+- Kindle firmware 5.20.1 doesn't count remote page turns as activity, so the Kindle still sleeps 10 minutes after the last screen touch.
 
 Requirements
 ------------
