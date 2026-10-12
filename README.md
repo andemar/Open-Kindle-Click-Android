@@ -25,7 +25,7 @@ Currently, connection with iOS central is not tested yet.
 Kindle Click
 ------------
 
-The sample app's **Kindle Click** screen turns the phone into a Kindle Click remote: page forward / back (also the volume keys), light −/+, and sleep (hold). The Kindle shows the phone's battery level, or one you choose.
+The sample app's **Kindle Click** screen turns the phone into a Kindle Click remote: page forward / back (also the volume keys), light −/+, and sleep (hold). The Kindle shows the phone's battery level, or one you choose. The APK is on the [Releases](https://github.com/zuyan9/Open-Kindle-Click-Android/releases) page.
 
 It should work with any Kindle that supports the Kindle Click; the tested ones are listed above.
 
@@ -35,6 +35,8 @@ Known limits:
 
 - The remote can't wake the Kindle. After you wake it, the remote works again in about 3 seconds.
 - Kindle firmware 5.20.1 doesn't count remote page turns as activity, so the Kindle still sleeps when its sleep timer runs out after the last screen touch. A longer timer helps (Settings › Device options › Sleep timer).
+
+Not affiliated with Amazon. Kindle is a trademark of Amazon.com, Inc. or its affiliates.
 
 Requirements
 ------------
