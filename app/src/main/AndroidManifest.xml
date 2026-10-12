@@ -43,6 +43,12 @@
             android:name=".AbsoluteMouseActivity"
             android:exported="false"
             android:launchMode="singleTask" />
+        <!-- Not recreated on rotation: that would disconnect the Kindle -->
+        <activity
+            android:name=".KindleClickActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|locale|layoutDirection"
+            android:exported="false"
+            android:launchMode="singleTask" />
     </application>
 
 </manifest>

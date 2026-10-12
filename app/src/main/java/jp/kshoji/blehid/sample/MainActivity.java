@@ -47,5 +47,11 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(new Intent(getApplicationContext(), JoystickActivity.class));
             }
         });
+        findViewById(id.kindleClickButton).setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startActivity(new Intent(getApplicationContext(), KindleClickActivity.class));
+            }
+        });
     }
 }
