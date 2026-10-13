@@ -53,3 +53,7 @@ Repository Overview
 LICENSE
 =======
 [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0)
+
+## Reference
+[Open-Kindle-Click-nRF52840](https://github.com/zuyan9/Open-Kindle-Click-nRF52840)
+
