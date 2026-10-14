@@ -27,22 +27,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".MouseActivity"
-            android:exported="false"
-            android:launchMode="singleTask" />
-        <activity
-            android:name=".KeyboardActivity"
-            android:exported="false"
-            android:launchMode="singleTask" />
-        <activity
-            android:name=".JoystickActivity"
-            android:exported="false"
-            android:launchMode="singleTask" />
-        <activity
-            android:name=".AbsoluteMouseActivity"
-            android:exported="false"
-            android:launchMode="singleTask" />
         <!-- Not recreated on rotation: that would disconnect the Kindle -->
         <activity
             android:name=".KindleClickActivity"

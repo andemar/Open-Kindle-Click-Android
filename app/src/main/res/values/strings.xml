@@ -5,9 +5,6 @@
     <string name="ble_perip_not_supported">Bluetooth LE Peripheral is not supported on this device. The app will exit.</string>
     <string name="not_supported">Not supported</string>
     <string name="ok">OK</string>
-    <string name="ble_joystick">BLE Joystick</string>
-    <string name="ble_keyboard">BLE Keyboard</string>
-    <string name="ble_mouse">BLE Mouse</string>
     <string name="ble_hid">BLE HID</string>
     <string name="kindle_click">Kindle Click</string>
     <string name="next_page">Page forward</string>

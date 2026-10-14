@@ -21,32 +21,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(layout.activity_main);
 
-        setTitle(getString(string.ble_hid));
+        setTitle(getString(string.kindle_click));
         
-        findViewById(id.mouseButton).setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startActivity(new Intent(getApplicationContext(), MouseActivity.class));
-            }
-        });
-        findViewById(id.absoluteMouseButton).setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startActivity(new Intent(getApplicationContext(), AbsoluteMouseActivity.class));
-            }
-        });
-        findViewById(id.keyboardButton).setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startActivity(new Intent(getApplicationContext(), KeyboardActivity.class));
-            }
-        });
-        findViewById(id.joystickButton).setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startActivity(new Intent(getApplicationContext(), JoystickActivity.class));
-            }
-        });
         findViewById(id.kindleClickButton).setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
