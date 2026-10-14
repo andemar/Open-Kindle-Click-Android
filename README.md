@@ -39,6 +39,28 @@ Known limits:
 
 Not affiliated with Amazon. Kindle is a trademark of Amazon.com, Inc. or its affiliates.
 
+Recent Changes & Improvements (since `7abcb07`)
+-----------------------------------------------
+
+### 📱 Dedicated Focus & Refactoring
+- **Kindle Click Dedicated App**: Refactored the project to focus purely on the Kindle Click page turner experience. Removed obsolete peripheral samples (mouse, keyboard, joystick).
+- **Direct Activity Launch**: Configured `KindleClickActivity` as the primary main activity in `AndroidManifest.xml`.
+
+### 🎨 Modern UI & Material Design 3
+- **Material 3 Integration**: Upgraded the app theme to Material 3 (`Theme.Material3.DayNight.NoActionBar`).
+- **Dark / Light Theme Toggle**: Added dynamic day/night mode switching with immediate UI updates.
+- **Keep Screen Awake**: Added a toggle switch to prevent the screen from sleeping while reading or using the remote.
+- **Enhanced Layout**: Redesigned the UI using Material Cards, connection status indicators, and large tactile buttons for page controls, light adjustment, and sleep.
+- **Pairing & Setup Guide**: Added an in-app setup guide dialog explaining how to pair and use the remote with Kindle devices.
+- **Battery Reporting**: Added customizable battery reporting (report actual phone battery vs. custom level on Kindle).
+
+### ⚡ Core BLE Reliability & Bug Fixes
+- **Fixed Stuck Brightness Adjustment**: Corrected touch event handling in `setUpBrightnessButton` (`return true` on touch) to ensure `releaseBrightness()` is dispatched when releasing buttons.
+- **Prevented GATT Server Leaks**: Ensured proper resource cleanup in `onDestroy()` during activity recreation (`recreate()`), preventing duplicate background GATT server instances.
+- **GATT Initialization Safety**: Removed infinite busy-wait loops during characteristic setup in `HidPeripheral.java`, preventing potential main-thread ANR locks.
+- **Bluetooth SIG Short UUID Resolution**: Corrected `isShortUuid` logic in `BleUuidUtils.java` to properly recognize 16-bit Bluetooth SIG UUIDs.
+- **Null & Permission Safety**: Added safety checks for `BluetoothAdapter` and `BluetoothManager` in `isKindleConnected()` to eliminate crashes when Bluetooth is toggled off.
+
 Requirements
 ------------
 
