@@ -4,16 +4,56 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Wireless Signal Arcs -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M48,18 A8,8 0 0,1 60,18" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M43,13 A15,15 0 0,1 65,13" />
+
+    <!-- Remote Body -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M30,34h48v8h-48z" />
+        android:pathData="M46,25 H62 A7,7 0 0,1 69,32 V78 A7,7 0 0,1 62,85 H46 A7,7 0 0,1 39,78 V32 A7,7 0 0,1 46,25 Z" />
+
+    <!-- Power / Status Indicator -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M30,50h48v8h-48z" />
+        android:fillColor="#FF5252"
+        android:pathData="M54,29.5 A2.5,2.5 0 1,1 53.99,29.5 Z" />
+
+    <!-- Upper Button (Next Page) -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M30,66h32v8h-32z" />
+        android:fillColor="#0D6EFD"
+        android:pathData="M47,38 H61 A3,3 0 0,1 64,41 V47 A3,3 0 0,1 61,50 H47 A3,3 0 0,1 44,47 V41 A3,3 0 0,1 47,38 Z" />
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M74,66h4v8h-4z" />
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M49,46 L54,41 L59,46" />
+
+    <!-- Lower Button (Previous Page) -->
+    <path
+        android:fillColor="#0D6EFD"
+        android:pathData="M47,54 H61 A3,3 0 0,1 64,57 V63 A3,3 0 0,1 61,66 H47 A3,3 0 0,1 44,63 V57 A3,3 0 0,1 47,54 Z" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M49,58 L54,63 L59,58" />
+
+    <!-- Bottom Auxiliary Buttons -->
+    <path
+        android:fillColor="#0D6EFD"
+        android:pathData="M48,72 A2,2 0 1,1 47.99,72 Z" />
+    <path
+        android:fillColor="#0D6EFD"
+        android:pathData="M60,72 A2,2 0 1,1 59.99,72 Z" />
 </vector>

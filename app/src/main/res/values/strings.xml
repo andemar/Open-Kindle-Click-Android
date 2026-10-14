@@ -30,4 +30,6 @@
     <string name="status_bluetooth_off">Bluetooth is off. Remote will start when Bluetooth is turned on.</string>
     <string name="status_connected">Kindle connected (awake)</string>
     <string name="toggle_theme">Toggle day/night mode</string>
+    <string name="keep_screen_on">Keep screen awake</string>
+    <string name="keep_screen_on_subtext">Prevent display from turning off while using remote</string>
 </resources>

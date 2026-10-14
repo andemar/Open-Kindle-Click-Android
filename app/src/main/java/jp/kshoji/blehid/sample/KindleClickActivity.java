@@ -21,6 +21,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnLongClickListener;
 import android.view.View.OnTouchListener;
+import android.view.WindowManager;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.ImageView;
@@ -57,6 +58,7 @@ public class KindleClickActivity extends AbstractBleActivity {
     private static final String PREF_PHONE_BATTERY = "phoneBattery";
     private static final String PREF_BATTERY_LEVEL = "batteryLevel";
     private static final String PREF_NIGHT_MODE = "nightMode";
+    private static final String PREF_KEEP_SCREEN_ON = "keepScreenOn";
     private static final int MAX_KINDLE_HANDLE = 0xFF; // a Kindle keeps report handles in 8 bits
 
     private KindleClickPeripheral kindleClick;
@@ -183,6 +185,21 @@ public class KindleClickActivity extends AbstractBleActivity {
             }
         });
 
+        final CompoundButton keepScreenOnSwitch = findViewById(id.keepScreenOnSwitch);
+        if (keepScreenOnSwitch != null) {
+            final boolean keepScreenOn = preferences().getBoolean(PREF_KEEP_SCREEN_ON, true);
+            keepScreenOnSwitch.setChecked(keepScreenOn);
+            setKeepScreenOn(keepScreenOn);
+            keepScreenOnSwitch.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(final CompoundButton buttonView, final boolean isChecked) {
+                    buttonView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                    preferences().edit().putBoolean(PREF_KEEP_SCREEN_ON, isChecked).apply();
+                    setKeepScreenOn(isChecked);
+                }
+            });
+        }
+
         final IntentFilter systemFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
         systemFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
         ContextCompat.registerReceiver(this, systemReceiver, systemFilter, ContextCompat.RECEIVER_NOT_EXPORTED);
@@ -195,6 +212,14 @@ public class KindleClickActivity extends AbstractBleActivity {
         final int currentNightMode = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
         final boolean isNight = (currentNightMode == Configuration.UI_MODE_NIGHT_YES);
         button.setIconResource(isNight ? drawable.ic_light_mode : drawable.ic_dark_mode);
+    }
+
+    private void setKeepScreenOn(final boolean keepOn) {
+        if (keepOn) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } else {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
     }
 
     private void showGuideDialog() {
