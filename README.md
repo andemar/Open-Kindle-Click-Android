@@ -39,11 +39,11 @@ Known limits:
 
 Not affiliated with Amazon. Kindle is a trademark of Amazon.com, Inc. or its affiliates.
 
-Recent Changes & Improvements (since `7abcb07`)
+Recent Changes & Improvements
 -----------------------------------------------
 
 ### 📱 Dedicated Focus & Refactoring
-- **Kindle Click Dedicated App**: Refactored the project to focus purely on the Kindle Click page turner experience. Removed obsolete peripheral samples (mouse, keyboard, joystick).
+- **Kindle Click Dedicated App**: Refactored the project to focus purely on the Kindle Click page turner experience. Removed peripheral samples (mouse, keyboard, joystick).
 - **Direct Activity Launch**: Configured `KindleClickActivity` as the primary main activity in `AndroidManifest.xml`.
 
 ### 🎨 Modern UI & Material Design 3
