@@ -19,20 +19,17 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
+        <!-- Not recreated on rotation: that would disconnect the Kindle -->
         <activity
-            android:name=".MainActivity"
-            android:exported="true">
+            android:name=".KindleClickActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|locale|layoutDirection"
+            android:exported="true"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!-- Not recreated on rotation: that would disconnect the Kindle -->
-        <activity
-            android:name=".KindleClickActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|locale|layoutDirection"
-            android:exported="false"
-            android:launchMode="singleTask" />
     </application>
 
 </manifest>

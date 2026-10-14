@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Open Kindle Click</string>
     <string name="hello">Hello World!</string>
@@ -7,19 +8,26 @@
     <string name="ok">OK</string>
     <string name="ble_hid">BLE HID</string>
     <string name="kindle_click">Kindle Click</string>
-    <string name="next_page">Page forward</string>
-    <string name="previous_page">Page back</string>
-    <string name="brightness_down">Light −</string>
-    <string name="brightness_up">Light +</string>
-    <string name="sleep">Sleep (hold)</string>
+    <string name="next_page">PAGE FORWARD</string>
+    <string name="previous_page">PAGE BACK</string>
+    <string name="brightness_down">LIGHT -</string>
+    <string name="brightness_up">LIGHT +</string>
+    <string name="sleep">SLEEP (HOLD)</string>
+    <string name="sleep_subtext">Long press to trigger</string>
     <string name="sleep_hint">Hold to put the Kindle to sleep</string>
-    <string name="phone_battery">Report the phone\'s battery level</string>
+    <string name="phone_battery">Report phone\'s battery level</string>
     <string name="battery_level">Battery level shown on the Kindle: %1$d%%</string>
+    <string name="battery_phone_format">Phone: %1$d%% on Kindle</string>
+    <string name="battery_custom_format">Manual: %1$d%% on Kindle</string>
+    <string name="show_guide">Show Guide</string>
+    <string name="guide_title">Kindle Setup &amp; Pairing Guide</string>
+    <string name="guide_message">1. On your Kindle, open Settings › Wi-Fi &amp; Bluetooth › Bluetooth devices.\n\n2. Search for available devices and select \"Kindle Click\" to pair.\n\n3. Once connected, page forward/back and brightness buttons will control your Kindle.\n\nNote: The volume keys on your phone will also turn pages while connected.</string>
     <string name="status_starting">Starting the remote…</string>
-    <string name="status_waiting">Waiting for the Kindle: it connects when it is awake. If it doesn\'t within a few seconds, connect the remote from the Kindle\'s Bluetooth devices. To pair, on the Kindle open Settings › Wi-Fi and Bluetooth › Bluetooth devices.</string>
-    <string name="status_stale_link">The Kindle is still connected from before the remote restarted, and ignores it until it reconnects. On the Kindle, turn Bluetooth off and on, or disconnect and reconnect the remote.</string>
-    <string name="status_handles_moved">Kindle connected, but the remote\'s Bluetooth layout changed since the Kindle last set it up, so keys may do nothing. On the Kindle, disconnect and reconnect the remote, or put the Kindle to sleep and wake it.</string>
-    <string name="status_handles_too_high">This phone placed the remote where a Kindle can\'t use it. Turn the phone\'s Bluetooth off and on.</string>
-    <string name="status_bluetooth_off">Bluetooth is off. The remote starts again when it\'s back on.</string>
-    <string name="status_connected">Kindle connected. The volume keys turn pages too.</string>
+    <string name="status_waiting">Waiting for Kindle: it connects when awake. If it doesn\'t within a few seconds, open Settings › Wi-Fi and Bluetooth › Bluetooth devices on your Kindle.</string>
+    <string name="status_stale_link">Kindle connected from before remote restarted. Turn Bluetooth off and on on Kindle to reconnect.</string>
+    <string name="status_handles_moved">Kindle connected, but Bluetooth layout changed. Disconnect and reconnect on Kindle.</string>
+    <string name="status_handles_too_high">Bluetooth handles too high. Toggle Bluetooth off and on on phone.</string>
+    <string name="status_bluetooth_off">Bluetooth is off. Remote will start when Bluetooth is turned on.</string>
+    <string name="status_connected">Kindle connected (awake)</string>
+    <string name="toggle_theme">Toggle day/night mode</string>
 </resources>
